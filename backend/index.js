@@ -1,12 +1,20 @@
 import express from "express";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
+import cors from "cors";
 import authRoutes from "./routes/auth.routes.js";
 import problemRoutes from "./routes/problem.routes.js";
 dotenv.config();
 
 const app = express();
 app.use(express.json());
+
+
+// Enable CORS
+app.use(cors({
+  origin: "http://localhost:5173",
+  credentials: true
+}));
 
 app.use("/api/auth", authRoutes);
 console.log("Auth routes registered at /api/auth");

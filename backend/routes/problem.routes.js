@@ -6,8 +6,8 @@ import Problem from "../models/Problem.js";
 
 const router = express.Router();
 
-
-router.post("/problems", verifyToken, async (req, res) => {
+// ✅ Admin-only: Create a new problem
+router.post("/problems", verifyToken, isAdmin, async (req, res) => {
     try {
         const { title, description, testCases } = req.body;
 
@@ -27,7 +27,7 @@ router.post("/problems", verifyToken, async (req, res) => {
     }
 });
 
-
+// ✅ Public: Get all problems (no auth needed)
 router.get("/problems", async (req, res) => {
     try {
         const problems = await Problem.find().select("-testCases");
@@ -38,7 +38,7 @@ router.get("/problems", async (req, res) => {
     }
 });
 
-
+// ✅ Public: Get single problem by ID
 router.get("/problems/:id", async (req, res) => {
     try {
         const problem = await Problem.findById(req.params.id);
@@ -52,7 +52,7 @@ router.get("/problems/:id", async (req, res) => {
     }
 });
 
-
+// ✅ Admin-only: Update a problem
 router.put("/problems/:id", verifyToken, isAdmin, async (req, res) => {
     try {
         const updated = await Problem.findByIdAndUpdate(
@@ -72,7 +72,7 @@ router.put("/problems/:id", verifyToken, isAdmin, async (req, res) => {
     }
 });
 
-
+// ✅ Admin-only: Delete a problem
 router.delete("/problems/:id", verifyToken, isAdmin, async (req, res) => {
     try {
         const deleted = await Problem.findByIdAndDelete(req.params.id);

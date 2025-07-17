@@ -1,8 +1,6 @@
-
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-
 
 export const registerUser = async (req, res) => {
     const { username, email, password } = req.body;
@@ -19,7 +17,7 @@ export const registerUser = async (req, res) => {
             username,
             email,
             password: hashedPassword,
-            role: "user",
+            role: "user", // default role
         });
 
         await user.save();
@@ -33,13 +31,13 @@ export const registerUser = async (req, res) => {
             expiresIn: "1h",
         });
 
-        res.status(201).json({ token });
+        // ✅ Send token and role in response
+        res.status(201).json({ token, role: user.role });
     } catch (err) {
         console.error("Register error:", err);
         res.status(500).json({ error: "Server error" });
     }
 };
-
 
 export const loginUser = async (req, res) => {
     const { email, password } = req.body;
@@ -66,7 +64,8 @@ export const loginUser = async (req, res) => {
             expiresIn: "1h",
         });
 
-        res.json({ token });
+        // ✅ Send token and role in response
+        res.json({ token, role: user.role });
     } catch (err) {
         console.error("Login error:", err);
         res.status(500).json({ error: "Server error" });
