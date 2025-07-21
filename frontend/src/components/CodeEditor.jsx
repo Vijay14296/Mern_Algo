@@ -1,6 +1,19 @@
 import React, { useState } from "react";
 import API from "../services/api";
 
+// CodeMirror imports
+import CodeMirror from "@uiw/react-codemirror";
+import { oneDark } from "@codemirror/theme-one-dark";
+import { python } from "@codemirror/lang-python";
+import { cpp } from "@codemirror/lang-cpp";
+import { java } from "@codemirror/lang-java";
+
+const languageExtensions = {
+  python: python(),
+  cpp: cpp(),
+  java: java(),
+};
+
 const CodeEditor = ({ problemId, problem }) => {
   const [code, setCode] = useState("");
   const [language, setLanguage] = useState("python");
@@ -11,7 +24,7 @@ const CodeEditor = ({ problemId, problem }) => {
   const runCode = async () => {
     setLoading(true);
     try {
-      const res = await API.post("/judge/submit", {
+      const res = await API.post("/code/submit", {
         code,
         language,
         problemId,
@@ -40,11 +53,12 @@ const CodeEditor = ({ problemId, problem }) => {
       </div>
 
       <label className="block mb-1 font-semibold">Your Code:</label>
-      <textarea
-        className="w-full h-64 p-3 font-mono border rounded resize-none focus:outline-none focus:ring focus:border-blue-300"
-        placeholder="# Write your code here"
+      <CodeMirror
         value={code}
-        onChange={(e) => setCode(e.target.value)}
+        height="300px"
+        extensions={[languageExtensions[language]]}
+        theme={oneDark}
+        onChange={(value) => setCode(value)}
       />
 
       <button
@@ -105,9 +119,7 @@ const CodeEditor = ({ problemId, problem }) => {
                 <div className="font-semibold">
                   Status:{" "}
                   <span
-                    className={
-                      res.passed ? "text-green-700" : "text-red-700"
-                    }
+                    className={res.passed ? "text-green-700" : "text-red-700"}
                   >
                     {res.passed ? "Passed ✅" : "Failed ❌"}
                   </span>
