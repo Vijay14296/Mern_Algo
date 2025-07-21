@@ -1,4 +1,3 @@
-// routes/problem.routes.js
 import express from "express";
 import { verifyToken } from "../middleware/auth.middleware.js";
 import { isAdmin } from "../middleware/role.middleware.js";
@@ -7,7 +6,7 @@ import Problem from "../models/Problem.js";
 const router = express.Router();
 
 // ✅ Admin-only: Create a new problem
-router.post("/problems", verifyToken, isAdmin, async (req, res) => {
+router.post("/", verifyToken, isAdmin, async (req, res) => {
     try {
         const { title, description, testCases } = req.body;
 
@@ -28,7 +27,7 @@ router.post("/problems", verifyToken, isAdmin, async (req, res) => {
 });
 
 // ✅ Public: Get all problems (no auth needed)
-router.get("/problems", async (req, res) => {
+router.get("/", async (req, res) => {
     try {
         const problems = await Problem.find().select("-testCases");
         res.json(problems);
@@ -39,7 +38,7 @@ router.get("/problems", async (req, res) => {
 });
 
 // ✅ Public: Get single problem by ID
-router.get("/problems/:id", async (req, res) => {
+router.get("/:id", async (req, res) => {
     try {
         const problem = await Problem.findById(req.params.id);
         if (!problem) {
@@ -53,7 +52,7 @@ router.get("/problems/:id", async (req, res) => {
 });
 
 // ✅ Admin-only: Update a problem
-router.put("/problems/:id", verifyToken, isAdmin, async (req, res) => {
+router.put("/:id", verifyToken, isAdmin, async (req, res) => {
     try {
         const updated = await Problem.findByIdAndUpdate(
             req.params.id,
@@ -73,7 +72,7 @@ router.put("/problems/:id", verifyToken, isAdmin, async (req, res) => {
 });
 
 // ✅ Admin-only: Delete a problem
-router.delete("/problems/:id", verifyToken, isAdmin, async (req, res) => {
+router.delete("/:id", verifyToken, isAdmin, async (req, res) => {
     try {
         const deleted = await Problem.findByIdAndDelete(req.params.id);
         if (!deleted) {
