@@ -7,5 +7,7 @@ RUN npm install
 
 COPY . .
 
-EXPOSE 8002
+# Expose the port your app listens on (from .env)
+EXPOSE 8000
+
 CMD ["node", "src/index.js"]

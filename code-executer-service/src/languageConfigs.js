@@ -2,7 +2,7 @@ module.exports = {
   python: {
     extension: '.py',
     image: 'python:3.10-slim',
-    runCmd: (filename) => `python ${filename}`
+    runCmd: (filename) => `python3 ${filename}`
   },
   cpp: {
     extension: '.cpp',

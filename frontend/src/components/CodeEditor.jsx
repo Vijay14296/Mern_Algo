@@ -21,14 +21,19 @@ const CodeEditor = ({ problemId, problem }) => {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  
   const runCode = async () => {
-    setLoading(true);
-    try {
-      const res = await API.post("/code/submit", {
-        code,
-        language,
-        problemId,
-      });
+  setLoading(true);
+  console.log("Running code with:", { code, language, problemId });  // Add this line
+
+  try {
+    const res = await API.post("/code/submit", {
+      code,
+      language,
+      problemId,
+    });
+    // rest...
+
       setResults(res.data.results || []);
       setVerdict(res.data.verdict || "Error");
     } catch (err) {

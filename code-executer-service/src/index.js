@@ -5,6 +5,9 @@ const runCodeInDocker = require('./dockerRunner');
 dotenv.config();
 const app = express();
 app.use(express.json());
+app.get('/', (req, res) => {
+  res.send('🛠️ Code Executor Microservice is running!');
+});
 
 app.post('/run', async (req, res) => {
   const { code, language, input } = req.body;
@@ -33,5 +36,5 @@ app.post('/run', async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 8002;
+const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => console.log(`🚀 Code Executor running on port ${PORT}`));

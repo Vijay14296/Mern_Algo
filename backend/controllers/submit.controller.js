@@ -1,7 +1,8 @@
 import axios from "axios";
 import Problem from "../models/Problem.js";
 
-const MICROSERVICE_URL = "http://code-executer:8002/run"; // Docker Compose service name
+const MICROSERVICE_URL = "http://13.127.15.229:8000/run";
+
 
 export const submitCode = async (req, res) => {
   console.log("SubmitCode called with body:", req.body);
