@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    container_name: backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - code-executer
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  code-executer:
+    build: ./code-executer-service
+    container_name: code-executer
+    ports:
+      - "8002:8002"
+    networks:
+      - app-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - 'D:/Vijay/L4/Online_Judge/src/temp:/code'
+    environment:
+      - HOST_TEMP_DIR=D:/Vijay/L4/Online_Judge/src/temp
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - app-network
+    restart: unless-stopped
+
+networks:
+  app-network:
+    driver: bridge

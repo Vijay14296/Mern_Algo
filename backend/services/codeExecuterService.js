@@ -3,7 +3,8 @@ const axios = require('axios');
 
 const runCode = async ({ code, language, input }) => {
   try {
-    const response = await axios.post('http://localhost:8002/run', {
+    // Use 'code-executer' service name, NOT localhost
+    const response = await axios.post('http://code-executer:8002/run', {
       code,
       language,
       input,

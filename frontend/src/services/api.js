@@ -1,8 +1,7 @@
-// services/api.js
 import axios from "axios";
 
 const API = axios.create({
-  baseURL: "http://localhost:5000/api",
+  baseURL: "http://localhost:8000/api",  // Your backend URL
 });
 
 API.interceptors.request.use((req) => {
@@ -11,14 +10,24 @@ API.interceptors.request.use((req) => {
   return req;
 });
 
-// ✅ Add this function here
-export const submitCode = async ({ code, language, input }) => {
+export const submitCode = async ({ code, language, problemId }) => {
+  // Basic input validation to catch issues early
+  if (!code || !language || !problemId) {
+    console.error("❌ submitCode missing required fields:", { code, language, problemId });
+    throw new Error("Missing code, language, or problemId");
+  }
+
   try {
+    console.log("🚀 Sending code submission:", { language, problemId, codeSnippet: code.slice(0, 30) + "..." });
+
     const response = await API.post("/code/submit", {
       code,
       language,
-      input,
+      problemId,
     });
+
+    console.log("✅ Submission response:", response.data);
+
     return response.data;
   } catch (err) {
     console.error("❌ Frontend Submit Error:", err.response?.data || err.message);

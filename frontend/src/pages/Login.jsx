@@ -9,6 +9,10 @@ const Login = ({ onLogin }) => {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+
+    // 🔍 Add this line to inspect what's being sent to the backend
+    console.log("Trying login with:", { email, password });
+
     try {
       const res = await API.post("/auth/login", { email, password });
       const { token, role } = res.data;
@@ -16,8 +20,7 @@ const Login = ({ onLogin }) => {
       localStorage.setItem("token", token);
       localStorage.setItem("role", role);
 
-      onLogin(token, role); // 🔥 update App state immediately
-
+      onLogin(token, role);
       alert("Login successful!");
 
       if (role === "admin") {

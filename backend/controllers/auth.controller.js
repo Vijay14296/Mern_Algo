@@ -6,6 +6,8 @@ export const registerUser = async (req, res) => {
     const { username, email, password } = req.body;
 
     try {
+        console.log("Registering user with:", { username, email, password }); // 🟡 DEBUG
+
         const existingUser = await User.findOne({ email });
         if (existingUser) {
             return res.status(400).json({ error: "Email already registered" });
@@ -17,7 +19,7 @@ export const registerUser = async (req, res) => {
             username,
             email,
             password: hashedPassword,
-            role: "user", // default role
+            role: "user",
         });
 
         await user.save();
@@ -27,14 +29,15 @@ export const registerUser = async (req, res) => {
             role: user.role,
         };
 
+        console.log("Generated payload:", payload); // 🟡 DEBUG
+
         const token = jwt.sign(payload, process.env.JWT_SECRET, {
             expiresIn: "1h",
         });
 
-        // ✅ Send token and role in response
         res.status(201).json({ token, role: user.role });
     } catch (err) {
-        console.error("Register error:", err);
+        console.error("❌ Register error:", err); // 🔴 LOG FULL ERROR
         res.status(500).json({ error: "Server error" });
     }
 };
