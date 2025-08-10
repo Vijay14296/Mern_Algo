@@ -2,18 +2,24 @@ import express from "express";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 import cors from "cors";
-import axios from "axios";
 
 // Route imports
 import authRoutes from "./routes/auth.routes.js";
 import problemRoutes from "./routes/problem.routes.js";
 import submitRoutes from "./routes/submit.routes.js"; // ✅ submit controller route
 
+// --- Global error handlers ---
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled Rejection:', reason);
+});
+
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-
 
 // Middleware
 app.use(express.json());
@@ -22,19 +28,18 @@ app.use(cors({
   credentials: true
 }));
 
-
 // Register routes
-app.use("/api/auth", authRoutes);          // ➤ Auth routes
-app.use("/api/problems", problemRoutes);   // ➤ Problem CRUD
-app.use("/api/code", submitRoutes);        // ➤ Code submission
+app.use("/api/auth", authRoutes);
+app.use("/api/problems", problemRoutes);
+app.use("/api/code", submitRoutes);
 
-// Optional: Health check route
+// Health check route
 app.get("/", (req, res) => {
   res.send("🚀 Online Judge Backend is running");
 });
-console.log("Connecting to:", process.env.MONGO_URI);
 
-// Connect to MongoDB and start server
+console.log("Connecting to MongoDB:", process.env.MONGO_URI);
+
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log("✅ MongoDB Connected");
@@ -43,5 +48,10 @@ mongoose.connect(process.env.MONGO_URI)
     });
   })
   .catch((err) => {
-    console.error("❌ MongoDB connection error:", err.message);
+    console.error("❌ MongoDB connection error:", err);
+    // Optional: exit after short delay so Render knows deployment failed
+    setTimeout(() => process.exit(1), 1000);
   });
+
+// Optional keep-alive to prevent unexpected exit (uncomment if needed)
+// setInterval(() => {}, 1 << 30);
