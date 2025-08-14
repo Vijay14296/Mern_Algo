@@ -13,7 +13,8 @@ import ProblemDetail from "./pages/ProblemDetail";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import CreateProblem from "./pages/admin/CreateProblem";
 import EditProblem from "./pages/admin/EditProblem";
-import AdminProblemList from "./pages/admin/AdminProblemList"; // ✅ Added
+import AdminProblemList from "./pages/admin/AdminProblemList";
+import UserDashboard from "./pages/UserDashboard";
 import Navbar from "./components/Navbar";
 
 const App = () => {
@@ -25,7 +26,6 @@ const App = () => {
       setToken(localStorage.getItem("token"));
       setRole(localStorage.getItem("role"));
     };
-
     syncAuth();
     window.addEventListener("storage", syncAuth);
     return () => window.removeEventListener("storage", syncAuth);
@@ -36,18 +36,21 @@ const App = () => {
     setRole(newRole);
   };
 
+  // Routes
   const AdminRoute = ({ children }) =>
     token && role === "admin" ? children : <Navigate to="/login" />;
 
-  const PrivateRoute = ({ children }) =>
-    token ? children : <Navigate to="/login" />;
+  const UserRoute = ({ children }) =>
+    token && role === "user" ? children : <Navigate to="/login" />;
+
+  const PrivateRoute = ({ children }) => (token ? children : <Navigate to="/login" />);
 
   return (
     <Router>
       {token && <Navbar />}
 
       <Routes>
-        {/* Redirect root based on role */}
+        {/* Root redirect based on role */}
         <Route
           path="/"
           element={
@@ -55,7 +58,7 @@ const App = () => {
               role === "admin" ? (
                 <Navigate to="/admin" />
               ) : (
-                <Navigate to="/problems" />
+                <Navigate to="/dashboard" />
               )
             ) : (
               <Navigate to="/login" />
@@ -93,7 +96,7 @@ const App = () => {
           }
         />
         <Route
-          path="/admin/problems" // ✅ Added this route
+          path="/admin/problems"
           element={
             <AdminRoute>
               <AdminProblemList />
@@ -101,7 +104,17 @@ const App = () => {
           }
         />
 
-        {/* User + Admin Shared Routes */}
+        {/* User Routes */}
+        <Route
+          path="/dashboard"
+          element={
+            <UserRoute>
+              <UserDashboard />
+            </UserRoute>
+          }
+        />
+
+        {/* Shared Routes */}
         <Route
           path="/problems"
           element={

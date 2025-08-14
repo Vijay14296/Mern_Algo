@@ -7,6 +7,8 @@ import cors from "cors";
 import authRoutes from "./routes/auth.routes.js";
 import problemRoutes from "./routes/problem.routes.js";
 import submitRoutes from "./routes/submit.routes.js"; // ✅ submit controller route
+import aiRoutes from "./routes/aiRoutes.js";
+
 
 // --- Global error handlers ---
 process.on('uncaughtException', (err) => {
@@ -32,7 +34,7 @@ app.use(cors({
 app.use("/api/auth", authRoutes);
 app.use("/api/problems", problemRoutes);
 app.use("/api/code", submitRoutes);
-
+app.use("/api/ai", aiRoutes);
 // Health check route
 app.get("/", (req, res) => {
   res.send("🚀 Online Judge Backend is running");

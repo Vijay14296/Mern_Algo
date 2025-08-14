@@ -1,8 +1,9 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: 'class', // enable manual class-based dark mode
   content: [
-    "./index.html",           // Vite entry point
-    "./src/**/*.{js,ts,jsx,tsx}", // All your components/pages
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
     extend: {},

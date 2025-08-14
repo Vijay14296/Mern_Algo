@@ -9,7 +9,7 @@ const docker = new Docker({ socketPath: '/var/run/docker.sock' });
 const HOST_TEMP_DIR = path.resolve(process.env.HOST_TEMP_DIR || '/tmp/online-judge-temp');
 const TEMP_DIR = '/code';
 
-// Ensure HOST_TEMP_DIR exists and writable
+// Ensure HOST_TEMP_DIR exists
 if (!fs.existsSync(HOST_TEMP_DIR)) {
   fs.mkdirSync(HOST_TEMP_DIR, { recursive: true });
   console.log('🛠️ Created HOST_TEMP_DIR:', HOST_TEMP_DIR);
@@ -17,46 +17,41 @@ if (!fs.existsSync(HOST_TEMP_DIR)) {
   console.log('📁 Using existing HOST_TEMP_DIR:', HOST_TEMP_DIR);
 }
 
-// Helper: safely write input to a temp file
-function writeInputFile(input, dir) {
+// Write input file
+function writeInputFile(input) {
   const inputFilename = `input-${uuid()}.txt`;
-  const inputPath = path.join(dir, inputFilename);
-  fs.writeFileSync(inputPath, input);
+  const fullPath = path.join(HOST_TEMP_DIR, inputFilename);
+  fs.writeFileSync(fullPath, input, 'utf8');
+  console.log(`📝 Input file created: ${fullPath}`);
   return inputFilename;
 }
 
-async function runCodeInDocker({ code, language, input = '' }) {
+// Normalize output
+function normalizeOutput(str) {
+  return str.replace(/[\x00-\x1F\x7F-\x9F]/g, '').replace(/\r\n/g, '\n').trim();
+}
+
+async function runCodeInDocker({ code, language, input = '', timeLimit = 5, memoryLimit = 256 }) {
   const lang = languageConfigs[language];
   if (!lang) throw new Error(`Unsupported language: ${language}`);
 
-  const filename = `Main-${uuid()}${lang.extension}`;
+  const filename = language === 'java' ? 'Main.java' : `Main-${uuid()}${lang.extension}`;
   const hostCodePath = path.join(HOST_TEMP_DIR, filename);
   const containerCodePath = path.join(TEMP_DIR, filename);
 
-  try {
-    // Write code file
-    fs.writeFileSync(hostCodePath, code, { encoding: 'utf8' });
-  } catch (err) {
-    console.error('❌ Failed to write code file:', err);
-    throw err;
-  }
+  console.log(`💾 Writing code file: ${hostCodePath}`);
+  fs.writeFileSync(hostCodePath, code, 'utf8');
 
-  // Prepare input file if input is provided
-  let inputFilename;
-  let containerInputPath;
-  if (input && input.trim() !== '') {
-    inputFilename = writeInputFile(input, HOST_TEMP_DIR);
+  let inputFilename, containerInputPath;
+  if (input && input.trim()) {
+    inputFilename = writeInputFile(input);
     containerInputPath = path.join(TEMP_DIR, inputFilename);
   }
 
-  // Build command safely
-  // Instead of echo | cmd, run command with input redirection if input exists
-  let runCommand = lang.runCmd(filename);
-  if (inputFilename) {
-    runCommand += ` < ${inputFilename}`;
-  }
+  let runCommand = language === 'java' ? lang.runCmd() : lang.runCmd(filename);
+  if (containerInputPath) runCommand += ` < ${containerInputPath}`;
 
-  console.log('🛠️ Running command in container:', runCommand);
+  console.log('🛠️ Running command inside container:', runCommand);
 
   let container;
   try {
@@ -68,82 +63,58 @@ async function runCodeInDocker({ code, language, input = '' }) {
         Binds: [`${HOST_TEMP_DIR}:${TEMP_DIR}`],
         AutoRemove: true,
         NetworkMode: 'none',
-        // Resource limits example (adjust as needed)
-        Memory: 256 * 1024 * 1024, // 256 MB
+        Memory: memoryLimit * 1024 * 1024,
         CpuShares: 256,
       },
       WorkingDir: TEMP_DIR,
     });
 
-    console.log('🐳 Created container:', container.id);
-
     const stream = await container.attach({ stream: true, stdout: true, stderr: true });
 
-    let output = '';
-    stream.on('data', (chunk) => {
-      const chunkStr = chunk.toString('utf8');
-      output += chunkStr;
-      // Comment this out if output is large and noisy
-      console.log('📥 Container output chunk:', chunkStr.trim());
-    });
+    let stdout = '';
+    let stderr = '';
 
-    await container.start();
-    console.log('▶️ Started container');
-
-    // Optional timeout: stop container if it runs too long (e.g., 5 seconds)
-    const timeout = 5000;
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Execution timed out')), timeout)
+    // Demux stream to capture stdout & stderr safely
+    container.modem.demuxStream(stream,
+      { write: chunk => { stdout += chunk.toString('utf8'); } },
+      { write: chunk => { stderr += chunk.toString('utf8'); } }
     );
 
-    await Promise.race([container.wait(), timeoutPromise]);
+    await container.start();
 
-    console.log('⏳ Container finished execution');
+    // Wait for container to finish OR timeout
+    await Promise.race([
+      container.wait(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Execution timed out')), timeLimit * 1000))
+    ]);
 
-    // Cleanup input file
-    if (inputFilename) {
-      try {
-        fs.unlinkSync(path.join(HOST_TEMP_DIR, inputFilename));
-        console.log('🧹 Deleted input file:', inputFilename);
-      } catch (e) {
-        console.warn('⚠️ Failed to delete input file:', inputFilename, e);
-      }
-    }
+    // Normalize outputs
+    const cleanedStdout = normalizeOutput(stdout);
+    const cleanedStderr = normalizeOutput(stderr);
 
-    // Cleanup code file
-    try {
-      fs.unlinkSync(hostCodePath);
-      console.log('🧹 Deleted code file:', filename);
-    } catch (e) {
-      console.warn('⚠️ Failed to delete code file:', filename, e);
-    }
+    const isError = /error|traceback|exception|cannot find symbol/i.test(cleanedStdout + cleanedStderr);
 
-    const cleanedOutput = output.replace(/[\x00-\x1F\x7F-\x9F]/g, '').trim();
-    const isError = /error|traceback|exception/i.test(cleanedOutput.toLowerCase());
+    // Cleanup temp files
+    if (fs.existsSync(hostCodePath)) fs.unlinkSync(hostCodePath);
+    if (inputFilename && fs.existsSync(path.join(HOST_TEMP_DIR, inputFilename))) fs.unlinkSync(path.join(HOST_TEMP_DIR, inputFilename));
+
+    console.log('✅ Execution finished. stdout:', cleanedStdout, 'stderr:', cleanedStderr);
 
     return {
-      output: cleanedOutput,
-      error: isError ? cleanedOutput : null,
+      stdout: cleanedStdout,
+      error: isError ? cleanedStderr || cleanedStdout : null,
     };
-  } catch (err) {
-    // Cleanup files if error occurred
-    if (inputFilename) {
-      try {
-        fs.unlinkSync(path.join(HOST_TEMP_DIR, inputFilename));
-      } catch {}
-    }
-    try {
-      if (fs.existsSync(hostCodePath)) fs.unlinkSync(hostCodePath);
-    } catch {}
 
+  } catch (err) {
+    // Cleanup on error
+    if (fs.existsSync(hostCodePath)) fs.unlinkSync(hostCodePath);
+    if (inputFilename && fs.existsSync(path.join(HOST_TEMP_DIR, inputFilename))) fs.unlinkSync(path.join(HOST_TEMP_DIR, inputFilename));
     if (container) {
-      try {
-        await container.remove({ force: true });
-      } catch {}
+      try { await container.remove({ force: true }); } catch (_) {}
     }
 
     console.error('🔥 Docker execution failed:', err);
-    throw err;
+    return { stdout: '', error: err.message };
   }
 }
 

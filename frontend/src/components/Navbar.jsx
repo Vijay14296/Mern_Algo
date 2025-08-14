@@ -14,24 +14,33 @@ const Navbar = () => {
 
   if (!token) return null; // hide navbar when not logged in
 
-  return (
-    <nav className="bg-white shadow-md px-6 py-3 flex justify-between items-center">
-      <h1 className="text-xl font-bold text-blue-600">Online Judge</h1>
+  // Determine dashboard link based on role
+  const dashboardLink = role === "admin" ? "/admin" : "/dashboard";
 
-      <div className="space-x-4">
-        <Link to="/problems" className="text-gray-700 hover:text-blue-600">
+  return (
+    <nav className="backdrop-blur-md bg-gradient-to-r from-indigo-900 via-purple-900 to-blue-900 shadow-lg px-8 py-3 flex justify-between items-center border-b border-white/20 font-sans relative z-20">
+      <h1 className="text-2xl font-bold text-purple-300 tracking-tight">
+        CodeMyst
+      </h1>
+
+      <div className="space-x-6 flex items-center">
+        <Link
+          to="/problems"
+          className="text-gray-300 hover:text-purple-300 transition-colors duration-200 font-medium"
+        >
           Problems
         </Link>
 
-        {role === "admin" && (
-          <Link to="/admin" className="text-gray-700 hover:text-blue-600">
-            Dashboard
-          </Link>
-        )}
+        <Link
+          to={dashboardLink}
+          className="text-gray-300 hover:text-purple-300 transition-colors duration-200 font-medium"
+        >
+          Dashboard
+        </Link>
 
         <button
           onClick={handleLogout}
-          className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition"
+          className="bg-white/10 hover:bg-white/20 text-gray-200 px-4 py-2 rounded-xl transition duration-200 border border-white/20 shadow-sm"
         >
           Logout
         </button>

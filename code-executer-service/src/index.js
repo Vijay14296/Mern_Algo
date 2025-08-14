@@ -5,12 +5,15 @@ const runCodeInDocker = require('./dockerRunner');
 dotenv.config();
 const app = express();
 app.use(express.json());
+
+// Health check
 app.get('/', (req, res) => {
   res.send('🛠️ Code Executor Microservice is running!');
 });
 
+// Run code endpoint
 app.post('/run', async (req, res) => {
-  const { code, language, input } = req.body;
+  const { code, language, input = '', timeLimit = 5, memoryLimit = 256 } = req.body;
 
   // 🧼 Input validation
   if (!code || !language) {
@@ -19,19 +22,29 @@ app.post('/run', async (req, res) => {
     });
   }
 
+  console.log('🔹 Received request:', { language, inputSnippet: input.slice(0, 50) + '...' });
+
   try {
-    const result = await runCodeInDocker({ code, language, input });
-    
+    const result = await runCodeInDocker({
+      code,
+      language,
+      input,
+      timeLimit,
+      memoryLimit,
+    });
+
+    console.log('🔹 Execution result:', { stdout: result.stdout, error: result.error });
+
     res.json({
-      output: result.output || '',
-      error: result.error || null,
+      stdout: result.stdout || '',
+      stderr: result.error || '',
     });
   } catch (err) {
     console.error('🔥 Docker execution failed:', err);
 
     res.status(500).json({
-      error: 'Code execution failed',
-      details: err.message || err.toString(),
+      stdout: '',
+      stderr: err.message || 'Unknown error',
     });
   }
 });
