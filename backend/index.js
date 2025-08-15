@@ -2,13 +2,15 @@ import express from "express";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 import cors from "cors";
+import leaderboardRoutes from "./routes/leaderboard.js";
+
 
 // Route imports
 import authRoutes from "./routes/auth.routes.js";
 import problemRoutes from "./routes/problem.routes.js";
 import submitRoutes from "./routes/submit.routes.js"; // ✅ submit controller route
 import aiRoutes from "./routes/aiRoutes.js";
-
+import userRoutes from "./routes/userRoutes.js"
 
 // --- Global error handlers ---
 process.on('uncaughtException', (err) => {
@@ -35,6 +37,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/problems", problemRoutes);
 app.use("/api/code", submitRoutes);
 app.use("/api/ai", aiRoutes);
+app.use("/api/users", userRoutes); // ✅ mount user routes
+app.use("/api/leaderboard", leaderboardRoutes);
 // Health check route
 app.get("/", (req, res) => {
   res.send("🚀 Online Judge Backend is running");

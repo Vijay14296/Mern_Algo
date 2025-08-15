@@ -1,43 +1,123 @@
-import React from "react";
-import { Link } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { ClipboardList, Trophy } from "lucide-react";
+import API from "../services/api";
+
+// Toast for newly earned badges
+const BadgeToast = ({ badges }) => {
+  const [visible, setVisible] = useState(false);
+  const [newBadge, setNewBadge] = useState({});
+
+  useEffect(() => {
+    if (badges && badges.length > 0) {
+      const latestBadge = badges[badges.length - 1];
+      setNewBadge(latestBadge);
+      setVisible(true);
+      const timer = setTimeout(() => setVisible(false), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [badges]);
+
+  if (!visible) return null;
+
+  return (
+    <div className="fixed top-5 right-5 bg-yellow-400 text-gray-900 font-bold px-4 py-2 rounded-lg shadow-lg z-50 animate-bounce flex items-center gap-2">
+      🎉 New Badge Earned: {newBadge.icon} {newBadge.name}
+    </div>
+  );
+};
 
 const UserDashboard = () => {
-  // Dummy data
-  const username = "Vijay";
-  const stats = { solved: 12, submissions: 30, xp: 200 };
+  const [user, setUser] = useState(null);
+  const [badgeToast, setBadgeToast] = useState([]);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchUserStats = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          navigate("/login");
+          return;
+        }
+
+        const res = await API.get("/users/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        // Detect newly earned badges
+        if (user && user.badges) {
+          const oldBadgeNames = user.badges.map((b) => b.name);
+          const newEarned = res.data.badges.filter(
+            (b) => !oldBadgeNames.includes(b.name)
+          );
+          if (newEarned.length) setBadgeToast(newEarned);
+        }
+
+        setUser(res.data);
+      } catch (err) {
+        console.error("❌ Error fetching user stats:", err);
+        if (err.response?.status === 403) {
+          localStorage.removeItem("token");
+          navigate("/login");
+        }
+      }
+    };
+
+    fetchUserStats();
+  }, [navigate]); // remove `user` to avoid infinite loop
+
+  if (!user)
+    return <p className="text-white text-center mt-10">Loading dashboard...</p>;
 
   return (
     <div className="min-h-screen p-6 bg-gradient-to-br from-indigo-900 via-purple-900 to-blue-900 relative">
+      {badgeToast.length > 0 && <BadgeToast badges={badgeToast} />}
+
       <div className="absolute inset-0 bg-black/20"></div>
       <div className="relative z-10 max-w-5xl mx-auto text-center text-white">
         <h1 className="text-4xl font-bold mb-4 text-purple-300">
-          Welcome, {username} 👨‍💻
+          Welcome, {user.username} 👨‍💻
         </h1>
         <p className="text-gray-300 mb-10 text-lg">
           Here's your coding journey at a glance
         </p>
 
         {/* Stats Cards */}
-        <div className="grid sm:grid-cols-3 gap-6 mb-10">
+        <div className="grid sm:grid-cols-5 gap-6 mb-10">
+          <StatCard title="Problems Solved" value={user.problemsSolved.length} />
+          <StatCard title="Total Submissions" value={user.totalSubmissions || 0} />
+          <StatCard title="XP" value={user.xp || 0} />
+          <StatCard title="Streak" value={user.streak || 0} />
           <div className="bg-white/10 p-6 rounded-2xl shadow-md hover:shadow-xl transition backdrop-blur-md">
             <h2 className="text-xl font-semibold text-purple-200 mb-2">
-              Problems Solved
+              Problem Stats
             </h2>
-            <p className="text-3xl font-bold text-cyan-300">{stats.solved}</p>
+            <div className="flex flex-col gap-1 text-cyan-200">
+              <p>Easy: {user.problemStats?.easySolved || 0}</p>
+              <p>Medium: {user.problemStats?.mediumSolved || 0}</p>
+              <p>Hard: {user.problemStats?.hardSolved || 0}</p>
+            </div>
           </div>
-          <div className="bg-white/10 p-6 rounded-2xl shadow-md hover:shadow-xl transition backdrop-blur-md">
-            <h2 className="text-xl font-semibold text-purple-200 mb-2">
-              Total Submissions
-            </h2>
-            <p className="text-3xl font-bold text-cyan-300">{stats.submissions}</p>
-          </div>
-          <div className="bg-white/10 p-6 rounded-2xl shadow-md hover:shadow-xl transition backdrop-blur-md">
-            <h2 className="text-xl font-semibold text-purple-200 mb-2">
-              XP
-            </h2>
-            <p className="text-3xl font-bold text-cyan-300">{stats.xp}</p>
-          </div>
+        </div>
+
+        {/* Badges */}
+        <div className="bg-white/10 p-6 rounded-2xl shadow-md hover:shadow-xl transition backdrop-blur-md mb-10">
+          <h2 className="text-xl font-semibold text-purple-200 mb-2">Badges</h2>
+          {user.badges.length ? (
+            <div className="flex flex-wrap justify-center gap-2">
+              {user.badges.map((badge, idx) => (
+                <span
+                  key={idx}
+                  className="bg-yellow-400 text-gray-900 px-3 py-1 rounded-full font-semibold text-sm flex items-center gap-1"
+                >
+                  {badge.icon} {badge.name}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-300">No badges yet</p>
+          )}
         </div>
 
         {/* Quick Links */}
@@ -59,5 +139,13 @@ const UserDashboard = () => {
     </div>
   );
 };
+
+// Reusable stat card
+const StatCard = ({ title, value }) => (
+  <div className="bg-white/10 p-6 rounded-2xl shadow-md hover:shadow-xl transition backdrop-blur-md">
+    <h2 className="text-xl font-semibold text-purple-200 mb-2">{title}</h2>
+    <p className="text-3xl font-bold text-cyan-300">{value}</p>
+  </div>
+);
 
 export default UserDashboard;

@@ -14,7 +14,7 @@ const languageExtensions = {
 
 const CodeEditor = ({ problemId, problem, onRunComplete }) => {
   const [language, setLanguage] = useState("python");
-  const [codeMap, setCodeMap] = useState({}); // store code per language
+  const [codeMap, setCodeMap] = useState({});
   const [results, setResults] = useState([]);
   const [verdict, setVerdict] = useState("");
   const [loading, setLoading] = useState(false);
@@ -22,7 +22,6 @@ const CodeEditor = ({ problemId, problem, onRunComplete }) => {
   const [aiReview, setAiReview] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
 
-  // When problem is fetched, initialize codeMap with starter codes
   useEffect(() => {
     if (problem) {
       setCodeMap((prev) => ({
@@ -37,13 +36,15 @@ const CodeEditor = ({ problemId, problem, onRunComplete }) => {
 
   const runCode = async () => {
     setLoading(true);
+    setResults([]);
+    setVerdict("");
     try {
       const res = await API.post("/code/submit", { code, language, problemId });
       setResults(res.data.results || []);
       setVerdict(res.data.verdict || "Error");
 
       const newExpanded = {};
-      res.data.results.forEach((_, idx) => (newExpanded[idx] = false));
+      res.data.results?.forEach((_, idx) => (newExpanded[idx] = false));
       setExpandedCases(newExpanded);
 
       if (onRunComplete) onRunComplete(code, res.data.verdict);
@@ -56,26 +57,21 @@ const CodeEditor = ({ problemId, problem, onRunComplete }) => {
   };
 
   const requestAiReview = async () => {
-  setAiLoading(true);
-  setAiReview("");
-  try {
-    const res = await API.post("/ai/feedback", { problemId, code, language });
-    setAiReview(res.data.feedback || "No suggestions available.");
-  } catch (err) {
-    console.error("AI Review error:", err);
-    setAiReview("Failed to get AI review.");
-  }
-  setAiLoading(false);
-};
-
-
-  const toggleCase = (idx) => {
-    setExpandedCases((prev) => ({ ...prev, [idx]: !prev[idx] }));
+    setAiLoading(true);
+    setAiReview("");
+    try {
+      const res = await API.post("/ai/feedback", { problemId, code, language });
+      setAiReview(res.data.feedback || "No suggestions available.");
+    } catch (err) {
+      console.error("AI Review error:", err);
+      setAiReview("Failed to get AI review.");
+    }
+    setAiLoading(false);
   };
 
-  const handleCodeChange = (value) => {
-    setCodeMap((prev) => ({ ...prev, [language]: value }));
-  };
+  const toggleCase = (idx) => setExpandedCases((prev) => ({ ...prev, [idx]: !prev[idx] }));
+
+  const handleCodeChange = (value) => setCodeMap((prev) => ({ ...prev, [language]: value }));
 
   return (
     <div className="flex flex-col h-full bg-gray-900 rounded-lg border border-gray-700 p-4">
@@ -97,7 +93,6 @@ const CodeEditor = ({ problemId, problem, onRunComplete }) => {
         >
           {loading ? "Running..." : "Run Code"}
         </button>
-
         <button
           onClick={requestAiReview}
           disabled={aiLoading}
@@ -162,9 +157,9 @@ const CodeEditor = ({ problemId, problem, onRunComplete }) => {
                     </>
                   )}
 
-                  {res.error && (
+                  {res.runtimeError && (
                     <p className="text-red-400">
-                      <strong>Error:</strong> {res.error}
+                      <strong>Error:</strong> {res.runtimeError}
                     </p>
                   )}
                 </div>

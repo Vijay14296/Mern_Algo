@@ -16,6 +16,7 @@ import EditProblem from "./pages/admin/EditProblem";
 import AdminProblemList from "./pages/admin/AdminProblemList";
 import UserDashboard from "./pages/UserDashboard";
 import Navbar from "./components/Navbar";
+import Leaderboard from "./pages/LeaderBoard";
 
 const App = () => {
   const [token, setToken] = useState(localStorage.getItem("token"));
@@ -111,6 +112,14 @@ const App = () => {
             <UserRoute>
               <UserDashboard />
             </UserRoute>
+          }
+        />
+        <Route
+          path="/leaderboard"
+          element={
+            <PrivateRoute>
+              <Leaderboard />
+            </PrivateRoute>
           }
         />
 
