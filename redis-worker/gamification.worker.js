@@ -1,4 +1,12 @@
 // worker/gamification.worker.js
+import express from "express";
+const app = express();
+
+// Dummy route just to open a port
+app.get("/", (req, res) => res.send("Worker running"));
+
+const port = process.env.PORT || 8001;
+app.listen(port, () => console.log(`✅ Worker listening on port ${port}`));
 import { Worker } from "bullmq";
 import connection from "./config/redis.js";
 import connectDB from "./config/db.js";
@@ -79,3 +87,4 @@ const shutdown = async (sig) => {
   process.exit(0);
 };
 ["SIGINT", "SIGTERM"].forEach(sig => process.on(sig, () => shutdown(sig)));
+
