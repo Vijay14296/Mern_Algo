@@ -95,15 +95,16 @@ export const updateGamification = async (userId, problemId, problemDifficulty) =
         await user.save();
         console.log("✅ [Gamification] User saved to DB");
         return {
-            userId,           // add this
-            xp: result.xp,
-            level: result.level,
-            badges: result.badges,
-            problemsSolved: result.problemsSolved,
-            streak: result.streak,
-            problemStats: result.problemStats,
-            newlySolved: result.newlySolved
+            userId,
+            xp: user.xp,
+            level: user.level,
+            badges: user.badges,
+            problemsSolved: user.problemsSolved,
+            streak: user.streak,
+            problemStats: user.problemStats,
+            newlySolved
         };
+
     } catch (err) {
         console.error("❌ [Gamification] Error in updateGamification", err);
         throw err;
