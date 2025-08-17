@@ -12,6 +12,25 @@ const languageExtensions = {
   java: java(),
 };
 
+// --- Gamification Toast ---
+const GamificationToast = ({ gamification, onClose }) => {
+  useEffect(() => {
+    if (!gamification) return;
+    const timer = setTimeout(onClose, 4000);
+    return () => clearTimeout(timer);
+  }, [gamification, onClose]);
+
+  if (!gamification) return null;
+
+  return (
+    <div className="fixed top-5 right-5 bg-green-400 text-gray-900 font-bold px-4 py-2 rounded-lg shadow-lg z-50 transform transition-all duration-300">
+      🏆 XP: {gamification.xp ?? 0}, Badges: {gamification.badges?.length
+        ? gamification.badges.map(b => `${b.icon} ${b.name}`).join(", ")
+        : "None"}!
+    </div>
+  );
+};
+
 const CodeEditor = ({ problemId, problem, onRunComplete }) => {
   const [language, setLanguage] = useState("python");
   const [codeMap, setCodeMap] = useState({});
@@ -21,18 +40,20 @@ const CodeEditor = ({ problemId, problem, onRunComplete }) => {
   const [expandedCases, setExpandedCases] = useState({});
   const [aiReview, setAiReview] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
+  const [gamificationToast, setGamificationToast] = useState(null);
 
+  // Initialize code from starterCode safely
   useEffect(() => {
     if (problem) {
-      setCodeMap((prev) => ({
-        python: problem.starterCode?.python || prev.python || "",
-        cpp: problem.starterCode?.cpp || prev.cpp || "",
-        java: problem.starterCode?.java || prev.java || "",
+      setCodeMap(prev => ({
+        python: problem.starterCode?.python ?? prev.python ?? "",
+        cpp: problem.starterCode?.cpp ?? prev.cpp ?? "",
+        java: problem.starterCode?.java ?? prev.java ?? "",
       }));
     }
   }, [problem]);
 
-  const code = codeMap[language] || "";
+  const code = codeMap[language] ?? "";
 
   const runCode = async () => {
     setLoading(true);
@@ -40,14 +61,20 @@ const CodeEditor = ({ problemId, problem, onRunComplete }) => {
     setVerdict("");
     try {
       const res = await API.post("/code/submit", { code, language, problemId });
-      setResults(res.data.results || []);
-      setVerdict(res.data.verdict || "Error");
+
+      const safeResults = res.data?.results ?? [];
+      setResults(safeResults);
+      setVerdict(res.data?.verdict ?? "Error");
 
       const newExpanded = {};
-      res.data.results?.forEach((_, idx) => (newExpanded[idx] = false));
+      safeResults.forEach((_, idx) => (newExpanded[idx] = false));
       setExpandedCases(newExpanded);
 
-      if (onRunComplete) onRunComplete(code, res.data.verdict);
+      // Show gamification toast if user earned XP or badges
+      if (res.data?.gamification) setGamificationToast(res.data.gamification);
+
+      if (onRunComplete)
+        onRunComplete(code, res.data?.verdict, res.data?.gamification);
     } catch (err) {
       console.error("Error running code:", err);
       setResults([]);
@@ -61,7 +88,7 @@ const CodeEditor = ({ problemId, problem, onRunComplete }) => {
     setAiReview("");
     try {
       const res = await API.post("/ai/feedback", { problemId, code, language });
-      setAiReview(res.data.feedback || "No suggestions available.");
+      setAiReview(res.data?.feedback ?? "No suggestions available.");
     } catch (err) {
       console.error("AI Review error:", err);
       setAiReview("Failed to get AI review.");
@@ -69,9 +96,8 @@ const CodeEditor = ({ problemId, problem, onRunComplete }) => {
     setAiLoading(false);
   };
 
-  const toggleCase = (idx) => setExpandedCases((prev) => ({ ...prev, [idx]: !prev[idx] }));
-
-  const handleCodeChange = (value) => setCodeMap((prev) => ({ ...prev, [language]: value }));
+  const toggleCase = idx => setExpandedCases(prev => ({ ...prev, [idx]: !prev[idx] }));
+  const handleCodeChange = value => setCodeMap(prev => ({ ...prev, [language]: value }));
 
   return (
     <div className="flex flex-col h-full bg-gray-900 rounded-lg border border-gray-700 p-4">
@@ -79,7 +105,7 @@ const CodeEditor = ({ problemId, problem, onRunComplete }) => {
       <div className="mb-4 flex gap-2">
         <select
           value={language}
-          onChange={(e) => setLanguage(e.target.value)}
+          onChange={e => setLanguage(e.target.value)}
           className="bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white"
         >
           <option value="python">Python</option>
@@ -113,7 +139,7 @@ const CodeEditor = ({ problemId, problem, onRunComplete }) => {
         />
       </div>
 
-      {/* AI Review Output */}
+      {/* AI Review */}
       {aiReview && (
         <div className="p-4 border-t border-gray-700 bg-gray-800 rounded-lg mb-4 overflow-auto">
           <h3 className="text-lg font-semibold mb-2 text-white">AI Review:</h3>
@@ -141,18 +167,18 @@ const CodeEditor = ({ problemId, problem, onRunComplete }) => {
                 <div className="mt-2 p-2 bg-gray-900 rounded">
                   <p>
                     <strong>Input:</strong>
-                    <pre className="bg-gray-800 p-2 rounded text-white">{res.input}</pre>
+                    <pre className="bg-gray-800 p-2 rounded text-white">{res.input ?? ""}</pre>
                   </p>
 
                   {!res.hidden && (
                     <>
                       <p>
                         <strong>Expected Output:</strong>
-                        <pre className="bg-gray-800 p-2 rounded text-white">{res.expectedOutput}</pre>
+                        <pre className="bg-gray-800 p-2 rounded text-white">{res.expectedOutput ?? ""}</pre>
                       </p>
                       <p>
                         <strong>Your Output:</strong>
-                        <pre className="bg-gray-800 p-2 rounded text-white">{res.actualOutput}</pre>
+                        <pre className="bg-gray-800 p-2 rounded text-white">{res.actualOutput ?? ""}</pre>
                       </p>
                     </>
                   )}
@@ -167,6 +193,14 @@ const CodeEditor = ({ problemId, problem, onRunComplete }) => {
             </div>
           ))}
         </div>
+      )}
+
+      {/* Gamification Toast */}
+      {gamificationToast && (
+        <GamificationToast
+          gamification={gamificationToast}
+          onClose={() => setGamificationToast(null)}
+        />
       )}
     </div>
   );

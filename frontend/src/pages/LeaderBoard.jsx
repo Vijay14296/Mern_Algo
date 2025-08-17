@@ -1,10 +1,14 @@
 import React, { useEffect, useState } from "react";
 import API from "../services/api";
+import { io } from "socket.io-client";
+
+let socket;
 
 const Leaderboard = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Fetch initial leaderboard
   useEffect(() => {
     const fetchLeaderboard = async () => {
       try {
@@ -17,6 +21,22 @@ const Leaderboard = () => {
     };
 
     fetchLeaderboard();
+  }, []);
+
+  // Setup Socket.IO for real-time updates
+  useEffect(() => {
+    if (!socket) {
+      socket = io(import.meta.env.VITE_BACKEND_URL || "http://localhost:5000");
+    }
+
+    socket.on("leaderboardUpdate", (updatedUsers) => {
+      console.log("🔔 Leaderboard update received:", updatedUsers);
+      setUsers(updatedUsers);
+    });
+
+    return () => {
+      socket.off("leaderboardUpdate");
+    };
   }, []);
 
   if (loading) return <p className="text-white text-center mt-10">Loading leaderboard...</p>;
@@ -40,9 +60,7 @@ const Leaderboard = () => {
               {users.map((user, idx) => (
                 <tr
                   key={user._id}
-                  className={`border-b border-gray-700 ${
-                    idx % 2 === 0 ? "bg-white/5" : ""
-                  }`}
+                  className={`border-b border-gray-700 ${idx % 2 === 0 ? "bg-white/5" : ""}`}
                 >
                   <td className="px-4 py-2">{idx + 1}</td>
                   <td className="px-4 py-2">{user.username}</td>

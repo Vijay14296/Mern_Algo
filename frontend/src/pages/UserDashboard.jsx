@@ -2,8 +2,10 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ClipboardList, Trophy } from "lucide-react";
 import API from "../services/api";
+import { io } from "socket.io-client";
 
-// Toast for newly earned badges
+let socket;
+
 const BadgeToast = ({ badges }) => {
   const [visible, setVisible] = useState(false);
   const [newBadge, setNewBadge] = useState({});
@@ -32,28 +34,18 @@ const UserDashboard = () => {
   const [badgeToast, setBadgeToast] = useState([]);
   const navigate = useNavigate();
 
+  // Initial fetch + real-time setup
   useEffect(() => {
-    const fetchUserStats = async () => {
+    const fetchUser = async () => {
       try {
         const token = localStorage.getItem("token");
         if (!token) {
           navigate("/login");
           return;
         }
-
         const res = await API.get("/users/me", {
           headers: { Authorization: `Bearer ${token}` },
         });
-
-        // Detect newly earned badges
-        if (user && user.badges) {
-          const oldBadgeNames = user.badges.map((b) => b.name);
-          const newEarned = res.data.badges.filter(
-            (b) => !oldBadgeNames.includes(b.name)
-          );
-          if (newEarned.length) setBadgeToast(newEarned);
-        }
-
         setUser(res.data);
       } catch (err) {
         console.error("❌ Error fetching user stats:", err);
@@ -64,8 +56,31 @@ const UserDashboard = () => {
       }
     };
 
-    fetchUserStats();
-  }, [navigate]); // remove `user` to avoid infinite loop
+    fetchUser();
+
+    // --- Socket.IO Real-time setup ---
+    if (!socket) {
+      socket = io(import.meta.env.VITE_BACKEND_URL || "http://localhost:5000");
+    }
+
+    // Wait until user is loaded to join their room
+    if (user?._id) socket.emit("joinRoom", user._id);
+
+    socket.on("gamificationUpdate", (data) => {
+      console.log("🔔 Real-time gamification update:", data);
+
+      // Show newly earned badges
+      if (data.badges?.length > 0 && user?.badges) {
+        const oldBadgeNames = user.badges.map((b) => b.name);
+        const newEarned = data.badges.filter((b) => !oldBadgeNames.includes(b.name));
+        if (newEarned.length) setBadgeToast(newEarned);
+      }
+
+      setUser((prev) => ({ ...prev, ...data }));
+    });
+
+    return () => socket.off("gamificationUpdate");
+  }, [user?._id, navigate]);
 
   if (!user)
     return <p className="text-white text-center mt-10">Loading dashboard...</p>;
@@ -85,14 +100,12 @@ const UserDashboard = () => {
 
         {/* Stats Cards */}
         <div className="grid sm:grid-cols-5 gap-6 mb-10">
-          <StatCard title="Problems Solved" value={user.problemsSolved.length} />
+          <StatCard title="Problems Solved" value={user.problemsSolved.length || 0} />
           <StatCard title="Total Submissions" value={user.totalSubmissions || 0} />
           <StatCard title="XP" value={user.xp || 0} />
           <StatCard title="Streak" value={user.streak || 0} />
           <div className="bg-white/10 p-6 rounded-2xl shadow-md hover:shadow-xl transition backdrop-blur-md">
-            <h2 className="text-xl font-semibold text-purple-200 mb-2">
-              Problem Stats
-            </h2>
+            <h2 className="text-xl font-semibold text-purple-200 mb-2">Problem Stats</h2>
             <div className="flex flex-col gap-1 text-cyan-200">
               <p>Easy: {user.problemStats?.easySolved || 0}</p>
               <p>Medium: {user.problemStats?.mediumSolved || 0}</p>
@@ -104,7 +117,7 @@ const UserDashboard = () => {
         {/* Badges */}
         <div className="bg-white/10 p-6 rounded-2xl shadow-md hover:shadow-xl transition backdrop-blur-md mb-10">
           <h2 className="text-xl font-semibold text-purple-200 mb-2">Badges</h2>
-          {user.badges.length ? (
+          {user.badges?.length ? (
             <div className="flex flex-wrap justify-center gap-2">
               {user.badges.map((badge, idx) => (
                 <span
@@ -140,7 +153,6 @@ const UserDashboard = () => {
   );
 };
 
-// Reusable stat card
 const StatCard = ({ title, value }) => (
   <div className="bg-white/10 p-6 rounded-2xl shadow-md hover:shadow-xl transition backdrop-blur-md">
     <h2 className="text-xl font-semibold text-purple-200 mb-2">{title}</h2>

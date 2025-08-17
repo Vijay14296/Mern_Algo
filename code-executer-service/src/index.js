@@ -1,6 +1,6 @@
 const express = require('express');
 const dotenv = require('dotenv');
-const runCodeInDocker = require('./dockerRunner');
+const runCode = require('./dockerRunner'); // <- updated import
 
 dotenv.config();
 const app = express();
@@ -13,7 +13,7 @@ app.get('/', (req, res) => {
 
 // Run code endpoint
 app.post('/run', async (req, res) => {
-  const { code, language, input = '', timeLimit = 5, memoryLimit = 256 } = req.body;
+  const { code, language, input = '', timeLimit = 5 } = req.body;
 
   // 🧼 Input validation
   if (!code || !language) {
@@ -25,12 +25,11 @@ app.post('/run', async (req, res) => {
   console.log('🔹 Received request:', { language, inputSnippet: input.slice(0, 50) + '...' });
 
   try {
-    const result = await runCodeInDocker({
+    const result = await runCode({
       code,
       language,
       input,
       timeLimit,
-      memoryLimit,
     });
 
     console.log('🔹 Execution result:', { stdout: result.stdout, error: result.error });
@@ -40,7 +39,7 @@ app.post('/run', async (req, res) => {
       stderr: result.error || '',
     });
   } catch (err) {
-    console.error('🔥 Docker execution failed:', err);
+    console.error('🔥 Code execution failed:', err);
 
     res.status(500).json({
       stdout: '',
@@ -50,4 +49,4 @@ app.post('/run', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 8000;
-app.listen(PORT, () => console.log(`🚀 Code Executor running on port ${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Code Executor running on port ${PORT}`));

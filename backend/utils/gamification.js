@@ -1,14 +1,6 @@
-// backend/utils/gamification.js
 import User from "../models/User.js";
 
-// XP per difficulty
-const XP_BY_DIFFICULTY = {
-  Easy: 10,
-  Medium: 20,
-  Hard: 30,
-};
-
-// Badge thresholds
+const XP_BY_DIFFICULTY = { Easy: 10, Medium: 20, Hard: 30 };
 const BADGE_RULES = [
   { type: "problemsSolved", threshold: 1, badge: "First Blood", icon: "🥇" },
   { type: "problemsSolved", threshold: 10, badge: "Rising Star", icon: "🏅" },
@@ -17,8 +9,7 @@ const BADGE_RULES = [
   { type: "xp", threshold: 500, badge: "XP Pro", icon: "🏆" },
 ];
 
-// Level calculation
-const calculateLevel = (xp) => {
+const calculateLevel = (xp = 0) => {
   if (xp < 100) return 1;
   if (xp < 300) return 2;
   if (xp < 600) return 3;
@@ -28,50 +19,58 @@ const calculateLevel = (xp) => {
 
 export const updateGamification = async (userId, problemId, problemDifficulty) => {
   try {
-    const user = await User.findById(userId);
-    if (!user) throw new Error("User not found");
+    console.log("🟢 [Gamification] Called updateGamification", { userId, problemId, problemDifficulty });
 
-    // --- Initialize defaults ---
-    user.totalSubmissions = user.totalSubmissions || 0;
-    user.problemsSolved = user.problemsSolved || [];
-    user.badges = user.badges || [];
-    user.problemStats = user.problemStats || { easySolved: 0, mediumSolved: 0, hardSolved: 0 };
-    user.streak = user.streak || 0;
+    const user = await User.findById(userId);
+    if (!user) {
+      console.error("🔴 [Gamification] User not found", { userId });
+      throw new Error("User not found");
+    }
+    console.log("🟢 [Gamification] User fetched from DB", user._id);
+
+    // Initialize fields if missing
+    user.totalSubmissions ??= 0;
+    user.problemsSolved ??= [];
+    user.badges ??= [];
+    user.problemStats ??= { easySolved: 0, mediumSolved: 0, hardSolved: 0 };
+    user.streak ??= 0;
+    user.xp ??= 0;
+
+    console.log("🟢 [Gamification] Initialized user fields");
 
     user.totalSubmissions += 1;
     user.lastSubmissionAt = new Date();
 
     let newlySolved = false;
+
     if (!user.problemsSolved.includes(problemId)) {
       newlySolved = true;
       user.problemsSolved.push(problemId);
       user.lastProblemSolvedAt = new Date();
 
-      // XP update
-      const earnedXP = XP_BY_DIFFICULTY[problemDifficulty] || 10;
-      user.xp = (user.xp || 0) + earnedXP;
+      const earnedXP = XP_BY_DIFFICULTY[problemDifficulty] ?? 10;
+      user.xp += earnedXP;
 
-      // Problem stats
       if (problemDifficulty === "Easy") user.problemStats.easySolved += 1;
       if (problemDifficulty === "Medium") user.problemStats.mediumSolved += 1;
       if (problemDifficulty === "Hard") user.problemStats.hardSolved += 1;
 
-      // Streak logic
+      console.log("🟢 [Gamification] XP and problem stats updated", { earnedXP, problemStats: user.problemStats });
+
       const today = new Date().setHours(0, 0, 0, 0);
       const lastSolved = user.lastSolvedDate ? new Date(user.lastSolvedDate).setHours(0, 0, 0, 0) : null;
 
-      if (!lastSolved) {
-        user.streak = 1;
-      } else {
+      if (!lastSolved) user.streak = 1;
+      else {
         const diffDays = (today - lastSolved) / (1000 * 60 * 60 * 24);
-        if (diffDays === 1) {
-          user.streak += 1;
-        } else if (diffDays > 1) {
-          user.streak = 1;
-        }
-        // same day, no change
+        if (diffDays === 1) user.streak += 1;
+        else if (diffDays > 1) user.streak = 1;
       }
+
       user.lastSolvedDate = new Date();
+      console.log("🟢 [Gamification] Streak updated", { streak: user.streak });
+    } else {
+      console.log("🟡 [Gamification] Problem already solved, skipping XP update");
     }
 
     // Check badges
@@ -79,31 +78,26 @@ export const updateGamification = async (userId, problemId, problemDifficulty) =
       if (rule.type === "problemsSolved" && user.problemsSolved.length >= rule.threshold) {
         if (!user.badges.some((b) => b.name === rule.badge)) {
           user.badges.push({ name: rule.badge, icon: rule.icon });
+          console.log("🟢 [Gamification] Badge earned", rule.badge);
         }
       }
-      if (rule.type === "xp" && (user.xp || 0) >= rule.threshold) {
+      if (rule.type === "xp" && user.xp >= rule.threshold) {
         if (!user.badges.some((b) => b.name === rule.badge)) {
           user.badges.push({ name: rule.badge, icon: rule.icon });
+          console.log("🟢 [Gamification] XP Badge earned", rule.badge);
         }
       }
     }
 
-    // Level
-    user.level = calculateLevel(user.xp || 0);
+    user.level = calculateLevel(user.xp);
+    console.log("🟢 [Gamification] Level calculated", { level: user.level });
 
     await user.save();
+    console.log("✅ [Gamification] User saved to DB");
 
-    return {
-      xp: user.xp,
-      level: user.level,
-      badges: user.badges,
-      problemsSolved: user.problemsSolved.length,
-      totalSubmissions: user.totalSubmissions,
-      problemStats: user.problemStats,
-      streak: user.streak,
-    };
+    return { xp: user.xp, level: user.level, badges: user.badges, problemsSolved: user.problemsSolved.length, totalSubmissions: user.totalSubmissions, problemStats: user.problemStats, streak: user.streak, newlySolved };
   } catch (err) {
-    console.error("Gamification update error:", err);
+    console.error("❌ [Gamification] Error in updateGamification", err);
     throw err;
   }
 };
